@@ -39,7 +39,7 @@ protected void onCreate(Bundle savedInstanceState) {
     zXingScannerView.setViewFinder(new ViewFinder(this));
     zXingScannerView.setCallback(new Callback() {
         @Override
-        public void result(String s) {
+        public void result(String s, String path) {
             Log.e("==================", s);
             // 在2秒后重新开启预览
             zXingScannerView.restartPreviewAfterDelay(2000);
