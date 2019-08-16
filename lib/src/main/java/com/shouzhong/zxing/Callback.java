@@ -2,6 +2,6 @@ package com.shouzhong.zxing;
 
 public interface Callback {
 
-    void result(String s);
+    void result(String s, String path);
 
 }

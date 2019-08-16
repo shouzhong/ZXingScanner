@@ -28,9 +28,10 @@ public class ScannerActivity extends AppCompatActivity {
         setContentView(R.layout.activity_scanner);
         zXingScannerView = findViewById(R.id.zxing);
         zXingScannerView.setViewFinder(new ViewFinder(this));
+        zXingScannerView.setSaveBmp(true);
         zXingScannerView.setCallback(new Callback() {
             @Override
-            public void result(String s) {
+            public void result(String s, String path) {
                 Log.e("==================", s);
                 startVibrator();
                 zXingScannerView.restartPreviewAfterDelay(2000);

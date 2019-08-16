@@ -2,6 +2,8 @@ package com.shouzhong.zxing;
 
 import android.content.Context;
 import android.content.res.Configuration;
+import android.graphics.Bitmap;
+import android.graphics.Matrix;
 import android.graphics.Point;
 import android.graphics.Rect;
 import android.hardware.Camera;
@@ -22,24 +24,25 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- *
+ * zxing的条码扫描
  *
  *
  */
 public class ZXingScannerView extends FrameLayout implements Camera.PreviewCallback, CameraPreview.FocusAreaSetter {
 
-    public static final String TAG = "ZBarScannerView";
+    public static final String TAG = "ZXingScannerView";
 
     private CameraWrapper cameraWrapper;
     private IViewFinder viewFinderView;
     private CameraPreview cameraPreview;
-    private Rect scaledRect, rotatedRect;
+    private Rect scaledRect;
     private ArrayList<Camera.Area> focusAreas;
     private CameraHandlerThread cameraHandlerThread;
     private boolean shouldAdjustFocusArea;//是否需要自动调整对焦区域
     private MultiFormatReader imageScanner;
     private Callback callback;
     private int[] previewSize;
+    private boolean isSaveBmp;
 
     public ZXingScannerView(Context context) {
         this(context, null);
@@ -69,38 +72,34 @@ public class ZXingScannerView extends FrameLayout implements Camera.PreviewCallb
             int previewHeight = parameters.getPreviewSize().height;
             //根据ViewFinderView和preview的尺寸之比，缩放扫码区域
             Rect rect = getScaledRect(previewWidth, previewHeight);
-            /*
-             * 方案一：旋转图像数据
-             */
-            int rotationCount = getRotationCount();//相机图像需要被顺时针旋转几次（每次90度）
-            if (rotationCount == 1 || rotationCount == 3) {//相机图像需要顺时针旋转90度或270度
-//                //旋转数据
-//                data = rotateData(data, camera);
-//                //交换宽高
-//                int tmp = previewWidth;
-//                previewWidth = previewHeight;
-//                previewHeight = tmp;
-                int temp1 = rect.left;
-                int temp2 = rect.right;
-                rect.left = rect.top;
-                rect.top = temp1;
-                rect.right = rect.bottom;
-                rect.bottom = temp2;
-            }
-            if (rect.left < 0)  rect.left = 0;
-            if (rect.top < 0) rect.top = 0;
-            if (rect.right > previewWidth) rect.right = previewWidth;
-            if (rect.bottom > previewHeight) rect.bottom = previewHeight;
             PlanarYUVLuminanceSource source = new PlanarYUVLuminanceSource(data, previewWidth, previewHeight, rect.left, rect.top, rect.width(), rect.height(), false);
             final Result result = imageScanner.decode(new BinaryBitmap(new HybridBinarizer(source)));
             if (result == null) {
                 getOneMoreFrame();
                 return;
             }
+            String s = null;
+            if (isSaveBmp) {
+                //相机图像需要被顺时针旋转几次（每次90度）
+                int  rotationCount = getRotationCount();
+                Bitmap bmp = Utils.nv21ToBitmap(data, previewWidth, previewHeight);
+                bmp= Bitmap.createBitmap(bmp, rect.left, rect.top, rect.width(), rect.height());
+                if (rotationCount != 0) {
+                    Matrix m = new Matrix();
+                    m.setRotate(rotationCount * 90, (float) bmp.getWidth() / 2, (float) bmp.getHeight() / 2);
+                    bmp = Bitmap.createBitmap(bmp, 0, 0, bmp.getWidth(), bmp.getHeight(), m, true);
+                }
+                s = Utils.saveBitmap(getContext(), bmp);
+                if (TextUtils.isEmpty(s)) {
+                    getOneMoreFrame();
+                    return;
+                }
+            }
+            final String path = s;
             post(new Runnable() {//切换到主线程
                 @Override
                 public void run() {
-                    if (callback != null) callback.result(result.getText());
+                    if (callback != null) callback.result(result.getText(), path);
                 }
             });
         } catch (Exception e) {
@@ -259,6 +258,15 @@ public class ZXingScannerView extends FrameLayout implements Camera.PreviewCallb
         this.shouldAdjustFocusArea = shouldAdjustFocusArea;
     }
 
+    /**
+     * 是否保存图片
+     *
+     * @param b
+     */
+    public void setSaveBmp(boolean b) {
+        isSaveBmp = b;
+    }
+
     // ******************************************************************************
     //
     // ******************************************************************************
@@ -315,6 +323,7 @@ public class ZXingScannerView extends FrameLayout implements Camera.PreviewCallb
             cameraWrapper.camera.release();//释放资源
             cameraWrapper = null;
         }
+        scaledRect = null;
         removeAllViews();
     }
 
@@ -326,78 +335,40 @@ public class ZXingScannerView extends FrameLayout implements Camera.PreviewCallb
             Rect framingRect = viewFinderView.getFramingRect();//获得扫码框区域
             int viewFinderViewWidth = ((View) viewFinderView).getWidth();
             int viewFinderViewHeight = ((View) viewFinderView).getHeight();
-            int width, height;
+            scaledRect = new Rect(framingRect);
             Point p = new Point();
             ((WindowManager) getContext().getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay().getSize(p);
             int o = p.x == p.y ? 0 : p.x < p.y ? Configuration.ORIENTATION_PORTRAIT : Configuration.ORIENTATION_LANDSCAPE;
-            if (o == Configuration.ORIENTATION_PORTRAIT && previewHeight < previewWidth || o == Configuration.ORIENTATION_LANDSCAPE && previewHeight > previewWidth) {
-                width = previewHeight;
-                height = previewWidth;
+            float ratio = o == Configuration.ORIENTATION_PORTRAIT ? previewHeight * 1f / previewWidth : previewWidth * 1f / previewHeight;
+            float r = viewFinderViewWidth * 1f / viewFinderViewHeight;
+            if (ratio < r){
+                int width = o == Configuration.ORIENTATION_PORTRAIT ? previewHeight : previewWidth;
+                scaledRect.left = scaledRect.left * width / viewFinderViewWidth;
+                scaledRect.right = scaledRect.right * width / viewFinderViewWidth;
+                scaledRect.top = scaledRect.top * width / viewFinderViewWidth;
+                scaledRect.bottom = scaledRect.bottom * width / viewFinderViewWidth;
             } else {
-                width = previewWidth;
-                height = previewHeight;
+                int height = o == Configuration.ORIENTATION_PORTRAIT ? previewWidth : previewHeight;
+                scaledRect.left = scaledRect.left * height / viewFinderViewHeight;
+                scaledRect.right = scaledRect.right * height / viewFinderViewHeight;
+                scaledRect.top = scaledRect.top * height / viewFinderViewHeight;
+                scaledRect.bottom = scaledRect.bottom * height / viewFinderViewHeight;
             }
-            scaledRect = new Rect(framingRect);
-            scaledRect.left = scaledRect.left * width / viewFinderViewWidth;
-            scaledRect.right = scaledRect.right * width / viewFinderViewWidth;
-            scaledRect.top = scaledRect.top * height / viewFinderViewHeight;
-            scaledRect.bottom = scaledRect.bottom * height / viewFinderViewHeight;
+            int rotationCount = getRotationCount();
+            if (rotationCount == 1 || rotationCount == 3) {
+                int temp1 = scaledRect.left;
+                scaledRect.left = scaledRect.top;
+                scaledRect.top = temp1;
+                int temp2 = scaledRect.right;
+                scaledRect.right = scaledRect.bottom;
+                scaledRect.bottom = temp2;
+            }
+            if (scaledRect.left < 0)  scaledRect.left = 0;
+            if (scaledRect.top < 0) scaledRect.top = 0;
+            if (scaledRect.right > previewWidth) scaledRect.right = previewWidth;
+            if (scaledRect.bottom > previewHeight) scaledRect.bottom = previewHeight;
         }
         return scaledRect;
-    }
-
-    /**
-     * 获取旋转后的Rect
-     *
-     * @param previewWidth
-     * @param previewHeight
-     * @param rect
-     * @return
-     */
-    private Rect getRotatedRect(int previewWidth, int previewHeight, Rect rect) {
-        if (rotatedRect == null) {
-            int rotationCount = getRotationCount();
-            rotatedRect = new Rect(rect);
-            if (rotationCount == 1) {//若相机图像需要顺时针旋转90度，则将扫码框逆时针旋转90度
-                rotatedRect.left = rect.top;
-                rotatedRect.top = previewHeight - rect.right;
-                rotatedRect.right = rect.bottom;
-                rotatedRect.bottom = previewHeight - rect.left;
-            } else if (rotationCount == 2) {//若相机图像需要顺时针旋转180度,则将扫码框逆时针旋转180度
-                rotatedRect.left = previewWidth - rect.right;
-                rotatedRect.top = previewHeight - rect.bottom;
-                rotatedRect.right = previewWidth - rect.left;
-                rotatedRect.bottom = previewHeight - rect.top;
-            } else if (rotationCount == 3) {//若相机图像需要顺时针旋转270度，则将扫码框逆时针旋转270度
-                rotatedRect.left = previewWidth - rect.bottom;
-                rotatedRect.top = rect.left;
-                rotatedRect.right = previewWidth - rect.top;
-                rotatedRect.bottom = rect.right;
-            }
-        }
-        return rotatedRect;
-    }
-
-    /**
-     * 旋转data
-     */
-    private byte[] rotateData(byte[] data, Camera camera) {
-        Camera.Parameters parameters = camera.getParameters();
-        int width = parameters.getPreviewSize().width;
-        int height = parameters.getPreviewSize().height;
-        int rotationCount = getRotationCount();
-        for (int i = 0; i < rotationCount; i++) {
-            byte[] rotatedData = new byte[data.length];
-            for (int y = 0; y < height; y++) {
-                for (int x = 0; x < width; x++)
-                    rotatedData[x * height + height - y - 1] = data[x + y * width];
-            }
-            data = rotatedData;
-            int tmp = width;
-            width = height;
-            height = tmp;
-        }
-        return data;
     }
 
     /**

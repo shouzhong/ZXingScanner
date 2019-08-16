@@ -13,7 +13,7 @@ android {
 }
 
 dependencies {
-    implementation 'com.google.zxing:core:3.4.0'
+    api 'com.google.zxing:core:3.4.0'
 }
 
 //发布 Jcenter
