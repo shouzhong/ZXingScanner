@@ -14,7 +14,7 @@
 ## 使用
 ### 依赖
 ```
-implementation 'com.shouzhong:ZXingScanner:1.0.0'
+implementation 'com.shouzhong:ZXingScanner:1.0.2'
 ```
 ### 代码
 xml
