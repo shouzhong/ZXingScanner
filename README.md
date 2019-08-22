@@ -218,9 +218,3 @@ CodeUtils
 decode | 识别图片，建议在子线程运行
 createBarcode | 条码生成，建议在子线程运行
 createQRCode | 二维码生成，建议在子线程运行
-
-## 混淆
-```
--dontwarn com.google.zxing.**
--keep class com.google.zxing.** {*;}
-```
