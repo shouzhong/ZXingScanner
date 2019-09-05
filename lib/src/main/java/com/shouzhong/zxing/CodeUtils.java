@@ -2,16 +2,17 @@ package com.shouzhong.zxing;
 
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
+import android.graphics.Matrix;
 
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.BinaryBitmap;
 import com.google.zxing.EncodeHintType;
+import com.google.zxing.MultiFormatReader;
 import com.google.zxing.MultiFormatWriter;
 import com.google.zxing.RGBLuminanceSource;
 import com.google.zxing.Result;
 import com.google.zxing.common.BitMatrix;
 import com.google.zxing.common.GlobalHistogramBinarizer;
-import com.google.zxing.qrcode.QRCodeReader;
 import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel;
 
 import java.util.Hashtable;
@@ -34,14 +35,31 @@ public class CodeUtils {
         if (bmp == null) throw new Exception("图片不存在");
         int width = bmp.getWidth();
         int height = bmp.getHeight();
+        Result result = null;
+        try {
+            int[] pixels = new int[width * height];
+            bmp.getPixels(pixels, 0, width, 0, 0, width, height);
+            //新建一个RGBLuminanceSource对象
+            RGBLuminanceSource source = new RGBLuminanceSource(width, height, pixels);
+            //将图片转换成二进制图片
+            BinaryBitmap binaryBitmap = new BinaryBitmap(new GlobalHistogramBinarizer(source));
+            MultiFormatReader reader = new MultiFormatReader();//初始化解析对象
+            result = reader.decode(binaryBitmap);//开始解析
+        } catch (Exception e) {}
+        if (result != null) return result.getText();
+        Matrix m = new Matrix();
+        m.setRotate(90, (float) bmp.getWidth() / 2, (float) bmp.getHeight() / 2);
+        bmp = Bitmap.createBitmap(bmp, 0, 0, bmp.getWidth(), bmp.getHeight(), m, true);
+        width = bmp.getWidth();
+        height = bmp.getHeight();
         int[] pixels = new int[width * height];
         bmp.getPixels(pixels, 0, width, 0, 0, width, height);
         //新建一个RGBLuminanceSource对象
         RGBLuminanceSource source = new RGBLuminanceSource(width, height, pixels);
         //将图片转换成二进制图片
         BinaryBitmap binaryBitmap = new BinaryBitmap(new GlobalHistogramBinarizer(source));
-        QRCodeReader reader = new QRCodeReader();//初始化解析对象
-        Result result = reader.decode(binaryBitmap);//开始解析
+        MultiFormatReader reader = new MultiFormatReader();//初始化解析对象
+        result = reader.decode(binaryBitmap);//开始解析
         return result.getText();
     }
 

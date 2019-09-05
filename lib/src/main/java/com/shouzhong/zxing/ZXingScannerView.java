@@ -14,14 +14,19 @@ import android.view.View;
 import android.view.WindowManager;
 import android.widget.FrameLayout;
 
+import com.google.zxing.BarcodeFormat;
 import com.google.zxing.BinaryBitmap;
+import com.google.zxing.DecodeHintType;
 import com.google.zxing.MultiFormatReader;
 import com.google.zxing.PlanarYUVLuminanceSource;
+import com.google.zxing.Reader;
 import com.google.zxing.Result;
 import com.google.zxing.common.HybridBinarizer;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * zxing的条码扫描
@@ -39,10 +44,14 @@ public class ZXingScannerView extends FrameLayout implements Camera.PreviewCallb
     private ArrayList<Camera.Area> focusAreas;
     private CameraHandlerThread cameraHandlerThread;
     private boolean shouldAdjustFocusArea;//是否需要自动调整对焦区域
-    private MultiFormatReader imageScanner;
+    private MultiFormatReader multiFormatReader;
+    private Map<DecodeHintType, Object> hints1;
+    private Map<DecodeHintType, Object> hints2;
     private Callback callback;
     private int[] previewSize;
     private boolean isSaveBmp;
+    private boolean enableBarcode = true;
+    private boolean enableQrcode = true;
 
     public ZXingScannerView(Context context) {
         this(context, null);
@@ -54,8 +63,6 @@ public class ZXingScannerView extends FrameLayout implements Camera.PreviewCallb
 
     public ZXingScannerView(Context context, AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
-        //创建ImageScanner（zbar扫码器）并进行基本设置（如支持的码格式）
-        setupScanner();
     }
 
     /**
@@ -70,10 +77,25 @@ public class ZXingScannerView extends FrameLayout implements Camera.PreviewCallb
             Camera.Parameters parameters = camera.getParameters();
             int previewWidth = parameters.getPreviewSize().width;
             int previewHeight = parameters.getPreviewSize().height;
+            int  rotationCount = getRotationCount();
+            boolean isRotated = rotationCount == 1 || rotationCount == 3;
             //根据ViewFinderView和preview的尺寸之比，缩放扫码区域
             Rect rect = getScaledRect(previewWidth, previewHeight);
-            PlanarYUVLuminanceSource source = new PlanarYUVLuminanceSource(data, previewWidth, previewHeight, rect.left, rect.top, rect.width(), rect.height(), false);
-            final Result result = imageScanner.decode(new BinaryBitmap(new HybridBinarizer(source)));
+            Result result = null;
+            if (enableQrcode) {
+                try {
+                    PlanarYUVLuminanceSource source = new PlanarYUVLuminanceSource(data, previewWidth, previewHeight, rect.left, rect.top, rect.width(), rect.height(), false);
+                    result = getReader().decode(new BinaryBitmap(new HybridBinarizer(source)), hints1);
+                } catch (Exception e) { }
+            }
+            if (result == null && enableBarcode) {
+                byte[] matrix = getMatrix(data, rect, previewWidth, previewHeight);
+                if (isRotated) matrix = rotateData(matrix, rect.width(), rect.height());
+                int width = isRotated ? rect.height() : rect.width();
+                int height = isRotated ? rect.width() : rect.height();
+                PlanarYUVLuminanceSource source = new PlanarYUVLuminanceSource(matrix, width, height, 0, 0, width, height, false);
+                result = getReader().decode(new BinaryBitmap(new HybridBinarizer(source)), hints2);
+            }
             if (result == null) {
                 getOneMoreFrame();
                 return;
@@ -81,7 +103,6 @@ public class ZXingScannerView extends FrameLayout implements Camera.PreviewCallb
             String s = null;
             if (isSaveBmp) {
                 //相机图像需要被顺时针旋转几次（每次90度）
-                int  rotationCount = getRotationCount();
                 Bitmap bmp = Utils.nv21ToBitmap(data, previewWidth, previewHeight);
                 bmp= Bitmap.createBitmap(bmp, rect.left, rect.top, rect.width(), rect.height());
                 if (rotationCount != 0) {
@@ -96,10 +117,11 @@ public class ZXingScannerView extends FrameLayout implements Camera.PreviewCallb
                 }
             }
             final String path = s;
+            final String text = result.getText();
             post(new Runnable() {//切换到主线程
                 @Override
                 public void run() {
-                    if (callback != null) callback.result(result.getText(), path);
+                    if (callback != null) callback.result(text, path);
                 }
             });
         } catch (Exception e) {
@@ -267,6 +289,24 @@ public class ZXingScannerView extends FrameLayout implements Camera.PreviewCallb
         isSaveBmp = b;
     }
 
+    /**
+     * 是否支持条码
+     *
+     * @param b
+     */
+    public void setEnableBarcode(boolean b) {
+        enableBarcode = b;
+    }
+
+    /**
+     * 是否支持二维码
+     *
+     * @param b
+     */
+    public void setEnableQrcode(boolean b) {
+        enableQrcode = b;
+    }
+
     // ******************************************************************************
     //
     // ******************************************************************************
@@ -285,8 +325,30 @@ public class ZXingScannerView extends FrameLayout implements Camera.PreviewCallb
     /**
      * 创建ImageScanner并进行基本设置（如支持的码格式）
      */
-    private void setupScanner() {
-        imageScanner = new MultiFormatReader();
+    private synchronized Reader getReader() {
+        if (multiFormatReader == null) {
+            multiFormatReader = new MultiFormatReader();
+        }
+        if (hints1 == null) {
+            hints1 = new HashMap<>();
+            List<BarcodeFormat> decodeFormats = new ArrayList<>();
+            decodeFormats.add(BarcodeFormat.QR_CODE);
+            hints1.put(DecodeHintType.POSSIBLE_FORMATS, decodeFormats);
+            hints1.put(DecodeHintType.TRY_HARDER, BarcodeFormat.QR_CODE);
+            hints1.put(DecodeHintType.CHARACTER_SET, "utf-8");
+        }
+        if (hints2 == null) {
+            hints2 = new HashMap<>();
+            List<BarcodeFormat> decodeFormats = new ArrayList<>();
+            decodeFormats.add(BarcodeFormat.CODABAR);
+            decodeFormats.add(BarcodeFormat.CODE_39);
+            decodeFormats.add(BarcodeFormat.CODE_93);
+            decodeFormats.add(BarcodeFormat.CODE_128);
+            hints2.put(DecodeHintType.POSSIBLE_FORMATS, decodeFormats);
+            hints2.put(DecodeHintType.TRY_HARDER, BarcodeFormat.CODE_128);
+            hints2.put(DecodeHintType.CHARACTER_SET, "utf-8");
+        }
+        return multiFormatReader;
     }
 
     void setupCameraPreview(final CameraWrapper cameraWrapper) {
@@ -369,6 +431,52 @@ public class ZXingScannerView extends FrameLayout implements Camera.PreviewCallb
             if (scaledRect.bottom > previewHeight) scaledRect.bottom = previewHeight;
         }
         return scaledRect;
+    }
+
+    /**
+     * 旋转数据
+     *
+     * @param data
+     * @param width
+     * @param height
+     * @return
+     */
+    private byte[] rotateData(byte[] data, int width, int height) {
+        int rotationCount = getRotationCount();
+        if (rotationCount == 0 || rotationCount == 2) return data;
+        byte[] bs = new byte[data.length];
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                bs[x * height + height - y - 1] = data[x + y * width];
+            }
+        }
+        return bs;
+    }
+
+    /**
+     * 获取矩形框的数据
+     *
+     * @param data
+     * @param rect
+     * @param previewWidth
+     * @param previewHeight
+     * @return
+     */
+    private byte[] getMatrix(byte[] data, Rect rect, int previewWidth, int previewHeight) {
+        if (rect.width() == previewWidth && rect.height() == previewHeight) return data;
+        int area = rect.width() * rect.height();
+        byte[] matrix = new byte[area];
+        int inputOffset = rect.top * previewWidth + rect.left;
+        if (rect.width() == previewWidth) {
+            System.arraycopy(data, inputOffset, matrix, 0, area);
+            return matrix;
+        }
+        for (int y = 0; y < rect.height(); y++) {
+            int outputOffset = y * rect.width();
+            System.arraycopy(data, inputOffset, matrix, outputOffset, rect.width());
+            inputOffset += previewWidth;
+        }
+        return matrix;
     }
 
     /**
