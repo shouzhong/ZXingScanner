@@ -43,8 +43,9 @@ public class ZXingScannerView extends FrameLayout implements Camera.PreviewCallb
     private Rect scaledRect;
     private ArrayList<Camera.Area> focusAreas;
     private CameraHandlerThread cameraHandlerThread;
-    private boolean shouldAdjustFocusArea;//是否需要自动调整对焦区域
+    private boolean shouldAdjustFocusArea = true;//是否需要自动调整对焦区域
     private MultiFormatReader multiFormatReader;
+    private Map<DecodeHintType, Object> hints0;
     private Map<DecodeHintType, Object> hints1;
     private Map<DecodeHintType, Object> hints2;
     private Callback callback;
@@ -85,14 +86,14 @@ public class ZXingScannerView extends FrameLayout implements Camera.PreviewCallb
             if (enableQrcode) {
                 try {
                     PlanarYUVLuminanceSource source = new PlanarYUVLuminanceSource(data, previewWidth, previewHeight, rect.left, rect.top, rect.width(), rect.height(), false);
-                    result = getReader().decode(new BinaryBitmap(new HybridBinarizer(source)), hints1);
+                    result = getReader().decode(new BinaryBitmap(new HybridBinarizer(source)), enableBarcode ? hints0 : hints1);
                 } catch (Exception e) { }
             }
             if (result == null && enableBarcode) {
                 byte[] matrix = getMatrix(data, rect, previewWidth, previewHeight);
-                if (isRotated) matrix = rotateData(matrix, rect.width(), rect.height());
-                int width = isRotated ? rect.height() : rect.width();
-                int height = isRotated ? rect.width() : rect.height();
+                matrix = rotateData(matrix, rect.width(), rect.height());
+                int width = rect.height();
+                int height = rect.width();
                 PlanarYUVLuminanceSource source = new PlanarYUVLuminanceSource(matrix, width, height, 0, 0, width, height, false);
                 result = getReader().decode(new BinaryBitmap(new HybridBinarizer(source)), hints2);
             }
@@ -329,6 +330,18 @@ public class ZXingScannerView extends FrameLayout implements Camera.PreviewCallb
         if (multiFormatReader == null) {
             multiFormatReader = new MultiFormatReader();
         }
+        if (hints0 == null) {
+            hints0 = new HashMap<>();
+            List<BarcodeFormat> decodeFormats = new ArrayList<>();
+            decodeFormats.add(BarcodeFormat.QR_CODE);
+            decodeFormats.add(BarcodeFormat.CODABAR);
+            decodeFormats.add(BarcodeFormat.CODE_39);
+            decodeFormats.add(BarcodeFormat.CODE_93);
+            decodeFormats.add(BarcodeFormat.CODE_128);
+            hints0.put(DecodeHintType.POSSIBLE_FORMATS, decodeFormats);
+            hints0.put(DecodeHintType.TRY_HARDER, BarcodeFormat.QR_CODE);
+            hints0.put(DecodeHintType.CHARACTER_SET, "utf-8");
+        }
         if (hints1 == null) {
             hints1 = new HashMap<>();
             List<BarcodeFormat> decodeFormats = new ArrayList<>();
@@ -386,6 +399,7 @@ public class ZXingScannerView extends FrameLayout implements Camera.PreviewCallb
             cameraWrapper = null;
         }
         scaledRect = null;
+        focusAreas = null;
         removeAllViews();
     }
 

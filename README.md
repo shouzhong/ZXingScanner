@@ -14,7 +14,7 @@
 ## 使用
 ### 依赖
 ```
-implementation 'com.shouzhong:ZXingScanner:1.0.3'
+implementation 'com.shouzhong:ZXingScanner:1.0.4'
 ```
 ### 代码
 xml
@@ -208,10 +208,10 @@ restartPreviewAfterDelay | 设置多少毫秒后重启扫描
 setFlash | 开启/关闭闪光灯
 toggleFlash | 切换闪光灯的点亮状态
 isFlashOn | 闪光灯是否被点亮
-setShouldAdjustFocusArea | 设置是否要根据扫码框的位置去调整对焦区域的位置，部分手机不支持，默认false
+setShouldAdjustFocusArea | 设置是否要根据扫码框的位置去调整对焦区域的位置，部分手机不支持，默认true
 setSaveBmp | 设置是否保存条码图片，默认false
-setEnableQrcode | 设置是否支持二维码识别，默认支持
-setEnableBarcode | 设置是否支持条码识别，默认支持
+setEnableQrcode | 设置是否支持二维码识别，默认true
+setEnableBarcode | 设置是否支持条码识别，默认true
 
 CodeUtils
 

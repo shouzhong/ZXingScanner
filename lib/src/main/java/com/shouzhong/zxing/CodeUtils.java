@@ -6,6 +6,7 @@ import android.graphics.Matrix;
 
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.BinaryBitmap;
+import com.google.zxing.DecodeHintType;
 import com.google.zxing.EncodeHintType;
 import com.google.zxing.MultiFormatReader;
 import com.google.zxing.MultiFormatWriter;
@@ -15,7 +16,11 @@ import com.google.zxing.common.BitMatrix;
 import com.google.zxing.common.GlobalHistogramBinarizer;
 import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Hashtable;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Created by Administrator on 2018/07/31.
@@ -35,7 +40,17 @@ public class CodeUtils {
         if (bmp == null) throw new Exception("图片不存在");
         int width = bmp.getWidth();
         int height = bmp.getHeight();
-        Result result = null;
+        Map<DecodeHintType, Object> hints = new HashMap<>();
+        List<BarcodeFormat> decodeFormats = new ArrayList<>();
+        decodeFormats.add(BarcodeFormat.QR_CODE);
+        decodeFormats.add(BarcodeFormat.CODABAR);
+        decodeFormats.add(BarcodeFormat.CODE_39);
+        decodeFormats.add(BarcodeFormat.CODE_93);
+        decodeFormats.add(BarcodeFormat.CODE_128);
+        hints.put(DecodeHintType.POSSIBLE_FORMATS, decodeFormats);
+        hints.put(DecodeHintType.TRY_HARDER, BarcodeFormat.QR_CODE);
+        hints.put(DecodeHintType.CHARACTER_SET, "utf-8");
+        MultiFormatReader reader = new MultiFormatReader();//初始化解析对象
         try {
             int[] pixels = new int[width * height];
             bmp.getPixels(pixels, 0, width, 0, 0, width, height);
@@ -43,10 +58,9 @@ public class CodeUtils {
             RGBLuminanceSource source = new RGBLuminanceSource(width, height, pixels);
             //将图片转换成二进制图片
             BinaryBitmap binaryBitmap = new BinaryBitmap(new GlobalHistogramBinarizer(source));
-            MultiFormatReader reader = new MultiFormatReader();//初始化解析对象
-            result = reader.decode(binaryBitmap);//开始解析
+            Result result = reader.decode(binaryBitmap, hints);//开始解析
+            return result.getText();
         } catch (Exception e) {}
-        if (result != null) return result.getText();
         Matrix m = new Matrix();
         m.setRotate(90, (float) bmp.getWidth() / 2, (float) bmp.getHeight() / 2);
         bmp = Bitmap.createBitmap(bmp, 0, 0, bmp.getWidth(), bmp.getHeight(), m, true);
@@ -58,8 +72,7 @@ public class CodeUtils {
         RGBLuminanceSource source = new RGBLuminanceSource(width, height, pixels);
         //将图片转换成二进制图片
         BinaryBitmap binaryBitmap = new BinaryBitmap(new GlobalHistogramBinarizer(source));
-        MultiFormatReader reader = new MultiFormatReader();//初始化解析对象
-        result = reader.decode(binaryBitmap);//开始解析
+        Result result = reader.decode(binaryBitmap, hints);//开始解析
         return result.getText();
     }
 
