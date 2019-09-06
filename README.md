@@ -14,7 +14,11 @@
 ## 使用
 ### 依赖
 ```
-implementation 'com.shouzhong:ZXingScanner:1.0.4'
+implementation 'com.shouzhong:ZXingScanner:1.0.5'
+```
+如果想使用zbar
+```
+implementation 'com.shouzhong:ZBarScanner:1.0.2'
 ```
 ### 代码
 xml
@@ -210,8 +214,6 @@ toggleFlash | 切换闪光灯的点亮状态
 isFlashOn | 闪光灯是否被点亮
 setShouldAdjustFocusArea | 设置是否要根据扫码框的位置去调整对焦区域的位置，部分手机不支持，默认true
 setSaveBmp | 设置是否保存条码图片，默认false
-setEnableQrcode | 设置是否支持二维码识别，默认true
-setEnableBarcode | 设置是否支持条码识别，默认true
 
 CodeUtils
 
@@ -220,3 +222,13 @@ CodeUtils
 decode | 识别图片，建议在子线程运行
 createBarcode | 条码生成，建议在子线程运行
 createQRCode | 二维码生成，建议在子线程运行
+
+## 混淆
+```
+-dontwarn net.sourceforge.zbar.**
+-keep class net.sourceforge.zbar.** {*;}
+-dontwarn com.shouzhong.**
+-keep class com.shouzhong.** {*;}
+-dontwarn com.google.zxing.**
+-keep class com.google.zxing.**
+```

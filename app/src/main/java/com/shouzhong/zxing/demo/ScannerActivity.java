@@ -29,8 +29,6 @@ public class ScannerActivity extends AppCompatActivity {
         zXingScannerView = findViewById(R.id.zxing);
         zXingScannerView.setViewFinder(new ViewFinder(this));
         zXingScannerView.setSaveBmp(true);
-        zXingScannerView.setEnableBarcode(true);
-        zXingScannerView.setEnableQrcode(true);
         zXingScannerView.setCallback(new Callback() {
             @Override
             public void result(String s, String path) {

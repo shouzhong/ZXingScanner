@@ -20,9 +20,15 @@ import com.google.zxing.DecodeHintType;
 import com.google.zxing.MultiFormatReader;
 import com.google.zxing.PlanarYUVLuminanceSource;
 import com.google.zxing.Reader;
-import com.google.zxing.Result;
 import com.google.zxing.common.HybridBinarizer;
 
+import net.sourceforge.zbar.Config;
+import net.sourceforge.zbar.Image;
+import net.sourceforge.zbar.ImageScanner;
+import net.sourceforge.zbar.Symbol;
+import net.sourceforge.zbar.SymbolSet;
+
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -45,14 +51,11 @@ public class ZXingScannerView extends FrameLayout implements Camera.PreviewCallb
     private CameraHandlerThread cameraHandlerThread;
     private boolean shouldAdjustFocusArea = true;//是否需要自动调整对焦区域
     private MultiFormatReader multiFormatReader;
+    private ImageScanner imageScanner;
     private Map<DecodeHintType, Object> hints0;
-    private Map<DecodeHintType, Object> hints1;
-    private Map<DecodeHintType, Object> hints2;
     private Callback callback;
     private int[] previewSize;
     private boolean isSaveBmp;
-    private boolean enableBarcode = true;
-    private boolean enableQrcode = true;
 
     public ZXingScannerView(Context context) {
         this(context, null);
@@ -82,22 +85,42 @@ public class ZXingScannerView extends FrameLayout implements Camera.PreviewCallb
             boolean isRotated = rotationCount == 1 || rotationCount == 3;
             //根据ViewFinderView和preview的尺寸之比，缩放扫码区域
             Rect rect = getScaledRect(previewWidth, previewHeight);
-            Result result = null;
-            if (enableQrcode) {
+            String str = null;
+            if (TextUtils.isEmpty(str)) {
+                try {
+                    Image barcode = new Image(previewWidth, previewHeight, "Y800");
+                    barcode.setData(data);
+                    barcode.setCrop(rect.left, rect.top, rect.width(), rect.height());
+                    int result = getImageScanner().scanImage(barcode);
+                    if (result == 0) throw new Exception("failure");
+                    // 识别成功
+                    SymbolSet syms = getImageScanner().getResults();
+                    for (Symbol sym : syms) {
+                        final String s = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT ? new String(sym.getDataBytes(), StandardCharsets.UTF_8) : sym.getData();
+                        if (!TextUtils.isEmpty(s)) {
+                            str = s;
+                            break;
+                        }
+                    }
+                } catch (Exception e) {}
+            }
+            if (TextUtils.isEmpty(str)) {
                 try {
                     PlanarYUVLuminanceSource source = new PlanarYUVLuminanceSource(data, previewWidth, previewHeight, rect.left, rect.top, rect.width(), rect.height(), false);
-                    result = getReader().decode(new BinaryBitmap(new HybridBinarizer(source)), enableBarcode ? hints0 : hints1);
+                    str = getReader().decode(new BinaryBitmap(new HybridBinarizer(source)), hints0).getText();
                 } catch (Exception e) { }
             }
-            if (result == null && enableBarcode) {
-                byte[] matrix = getMatrix(data, rect, previewWidth, previewHeight);
-                matrix = rotateData(matrix, rect.width(), rect.height());
-                int width = rect.height();
-                int height = rect.width();
-                PlanarYUVLuminanceSource source = new PlanarYUVLuminanceSource(matrix, width, height, 0, 0, width, height, false);
-                result = getReader().decode(new BinaryBitmap(new HybridBinarizer(source)), hints2);
+            if (TextUtils.isEmpty(str)) {
+                try {
+                    byte[] matrix = getMatrix(data, rect, previewWidth, previewHeight);
+                    matrix = rotateData(matrix, rect.width(), rect.height());
+                    int width = rect.height();
+                    int height = rect.width();
+                    PlanarYUVLuminanceSource source = new PlanarYUVLuminanceSource(matrix, width, height, 0, 0, width, height, false);
+                    str = getReader().decode(new BinaryBitmap(new HybridBinarizer(source)), hints0).getText();
+                } catch (Exception e) {}
             }
-            if (result == null) {
+            if (TextUtils.isEmpty(str)) {
                 getOneMoreFrame();
                 return;
             }
@@ -118,7 +141,7 @@ public class ZXingScannerView extends FrameLayout implements Camera.PreviewCallb
                 }
             }
             final String path = s;
-            final String text = result.getText();
+            final String text = str;
             post(new Runnable() {//切换到主线程
                 @Override
                 public void run() {
@@ -290,24 +313,6 @@ public class ZXingScannerView extends FrameLayout implements Camera.PreviewCallb
         isSaveBmp = b;
     }
 
-    /**
-     * 是否支持条码
-     *
-     * @param b
-     */
-    public void setEnableBarcode(boolean b) {
-        enableBarcode = b;
-    }
-
-    /**
-     * 是否支持二维码
-     *
-     * @param b
-     */
-    public void setEnableQrcode(boolean b) {
-        enableQrcode = b;
-    }
-
     // ******************************************************************************
     //
     // ******************************************************************************
@@ -342,26 +347,25 @@ public class ZXingScannerView extends FrameLayout implements Camera.PreviewCallb
             hints0.put(DecodeHintType.TRY_HARDER, BarcodeFormat.QR_CODE);
             hints0.put(DecodeHintType.CHARACTER_SET, "utf-8");
         }
-        if (hints1 == null) {
-            hints1 = new HashMap<>();
-            List<BarcodeFormat> decodeFormats = new ArrayList<>();
-            decodeFormats.add(BarcodeFormat.QR_CODE);
-            hints1.put(DecodeHintType.POSSIBLE_FORMATS, decodeFormats);
-            hints1.put(DecodeHintType.TRY_HARDER, BarcodeFormat.QR_CODE);
-            hints1.put(DecodeHintType.CHARACTER_SET, "utf-8");
-        }
-        if (hints2 == null) {
-            hints2 = new HashMap<>();
-            List<BarcodeFormat> decodeFormats = new ArrayList<>();
-            decodeFormats.add(BarcodeFormat.CODABAR);
-            decodeFormats.add(BarcodeFormat.CODE_39);
-            decodeFormats.add(BarcodeFormat.CODE_93);
-            decodeFormats.add(BarcodeFormat.CODE_128);
-            hints2.put(DecodeHintType.POSSIBLE_FORMATS, decodeFormats);
-            hints2.put(DecodeHintType.TRY_HARDER, BarcodeFormat.CODE_128);
-            hints2.put(DecodeHintType.CHARACTER_SET, "utf-8");
-        }
         return multiFormatReader;
+    }
+
+    /**
+     * 创建zbar识别器
+     *
+     * @return
+     */
+    private synchronized ImageScanner getImageScanner() {
+        if (imageScanner == null) {
+            imageScanner = new ImageScanner();
+            imageScanner.setConfig(0, Config.ENABLE, 0);
+            imageScanner.setConfig(Symbol.QRCODE, Config.ENABLE, 1);
+            imageScanner.setConfig(Symbol.CODABAR, Config.ENABLE, 1);
+            imageScanner.setConfig(Symbol.CODE39, Config.ENABLE, 1);
+            imageScanner.setConfig(Symbol.CODE93, Config.ENABLE, 1);
+            imageScanner.setConfig(Symbol.CODE128, Config.ENABLE, 1);
+        }
+        return imageScanner;
     }
 
     void setupCameraPreview(final CameraWrapper cameraWrapper) {
@@ -400,6 +404,8 @@ public class ZXingScannerView extends FrameLayout implements Camera.PreviewCallb
         }
         scaledRect = null;
         focusAreas = null;
+        multiFormatReader = null;
+        imageScanner = null;
         removeAllViews();
     }
 
