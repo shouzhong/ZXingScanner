@@ -14,7 +14,7 @@
 ## 使用
 ### 依赖
 ```
-implementation 'com.shouzhong:ZXingScanner:1.0.5'
+implementation 'com.shouzhong:ZXingScanner:1.0.6'
 ```
 如果想使用zbar
 ```

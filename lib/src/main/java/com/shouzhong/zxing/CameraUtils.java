@@ -46,11 +46,15 @@ class CameraUtils {
      */
     static boolean isFlashSupported(Camera camera) {
         if (camera == null) return false;
-        Camera.Parameters parameters = camera.getParameters();
-        if (parameters.getFlashMode() == null) return false;
-        List<String> list = parameters.getSupportedFlashModes();
-        if (list == null || list.size() == 0) return false;
-        if (list.size() == 1 && TextUtils.equals(list.get(0), Camera.Parameters.FLASH_MODE_OFF)) return false;
-        return true;
+        try {
+            Camera.Parameters parameters = camera.getParameters();
+            if (parameters.getFlashMode() == null) return false;
+            List<String> list = parameters.getSupportedFlashModes();
+            if (list == null || list.size() == 0) return false;
+            if (list.size() == 1 && TextUtils.equals(list.get(0), Camera.Parameters.FLASH_MODE_OFF)) return false;
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
     }
 }

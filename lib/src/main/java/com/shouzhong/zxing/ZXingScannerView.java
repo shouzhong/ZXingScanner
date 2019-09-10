@@ -9,6 +9,7 @@ import android.graphics.Rect;
 import android.hardware.Camera;
 import android.text.TextUtils;
 import android.util.AttributeSet;
+import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.View;
 import android.view.WindowManager;
@@ -157,50 +158,52 @@ public class ZXingScannerView extends FrameLayout implements Camera.PreviewCallb
     public void setAutoFocusArea() {
         //设置对焦区域
         if (!shouldAdjustFocusArea || cameraWrapper == null) return;
-        Camera.Parameters parameters = cameraWrapper.camera.getParameters();
-        if (parameters.getMaxNumFocusAreas() <= 0) {
-            Log.e(TAG, "不支持设置对焦区域");
-            return;
-        }
-        if (focusAreas == null) {
-            int width = 2000, height = 2000;
-            Rect framingRect = viewFinderView.getFramingRect();//获得扫码框区域
-            if (framingRect == null) return;
-            int viewFinderViewWidth = ((View) viewFinderView).getWidth();
-            int viewFinderViewHeight = ((View) viewFinderView).getHeight();
-            //1.根据ViewFinderView和2000*2000的尺寸之比，缩放对焦区域
-            Rect scaledRect = new Rect(framingRect);
-            scaledRect.left = scaledRect.left * width / viewFinderViewWidth;
-            scaledRect.right = scaledRect.right * width / viewFinderViewWidth;
-            scaledRect.top = scaledRect.top * height / viewFinderViewHeight;
-            scaledRect.bottom = scaledRect.bottom * height / viewFinderViewHeight;
-            //2.旋转对焦区域
-            Rect rotatedRect = new Rect(scaledRect);
-            int rotationCount = getRotationCount();
-            if (rotationCount == 1) {//若相机图像需要顺时针旋转90度，则将扫码框逆时针旋转90度
-                rotatedRect.left = scaledRect.top;
-                rotatedRect.top = 2000 - scaledRect.right;
-                rotatedRect.right = scaledRect.bottom;
-                rotatedRect.bottom = 2000 - scaledRect.left;
-            } else if (rotationCount == 2) {//若相机图像需要顺时针旋转180度,则将扫码框逆时针旋转180度
-                rotatedRect.left = 2000 - scaledRect.right;
-                rotatedRect.top = 2000 - scaledRect.bottom;
-                rotatedRect.right = 2000 - scaledRect.left;
-                rotatedRect.bottom = 2000 - scaledRect.top;
-            } else if (rotationCount == 3) {//若相机图像需要顺时针旋转270度，则将扫码框逆时针旋转270度
-                rotatedRect.left = 2000 - scaledRect.bottom;
-                rotatedRect.top = scaledRect.left;
-                rotatedRect.right = 2000 - scaledRect.top;
-                rotatedRect.bottom = scaledRect.right;
+        try {
+            Camera.Parameters parameters = cameraWrapper.camera.getParameters();
+            if (parameters == null || parameters.getMaxNumFocusAreas() <= 0) {
+                Log.e(TAG, "不支持设置对焦区域");
+                return;
             }
-            //3.坐标系平移
-            Rect rect = new Rect(rotatedRect.left - 1000, rotatedRect.top - 1000, rotatedRect.right - 1000, rotatedRect.bottom - 1000);
-            Camera.Area area = new Camera.Area(rect, 1000);
-            focusAreas = new ArrayList<>();
-            focusAreas.add(area);
-        }
-        parameters.setFocusAreas(focusAreas);
-        cameraWrapper.camera.setParameters(parameters);
+            if (focusAreas == null) {
+                int width = 2000, height = 2000;
+                Rect framingRect = viewFinderView.getFramingRect();//获得扫码框区域
+                if (framingRect == null) return;
+                int viewFinderViewWidth = ((View) viewFinderView).getWidth();
+                int viewFinderViewHeight = ((View) viewFinderView).getHeight();
+                //1.根据ViewFinderView和2000*2000的尺寸之比，缩放对焦区域
+                Rect scaledRect = new Rect(framingRect);
+                scaledRect.left = scaledRect.left * width / viewFinderViewWidth;
+                scaledRect.right = scaledRect.right * width / viewFinderViewWidth;
+                scaledRect.top = scaledRect.top * height / viewFinderViewHeight;
+                scaledRect.bottom = scaledRect.bottom * height / viewFinderViewHeight;
+                //2.旋转对焦区域
+                Rect rotatedRect = new Rect(scaledRect);
+                int rotationCount = getRotationCount();
+                if (rotationCount == 1) {//若相机图像需要顺时针旋转90度，则将扫码框逆时针旋转90度
+                    rotatedRect.left = scaledRect.top;
+                    rotatedRect.top = 2000 - scaledRect.right;
+                    rotatedRect.right = scaledRect.bottom;
+                    rotatedRect.bottom = 2000 - scaledRect.left;
+                } else if (rotationCount == 2) {//若相机图像需要顺时针旋转180度,则将扫码框逆时针旋转180度
+                    rotatedRect.left = 2000 - scaledRect.right;
+                    rotatedRect.top = 2000 - scaledRect.bottom;
+                    rotatedRect.right = 2000 - scaledRect.left;
+                    rotatedRect.bottom = 2000 - scaledRect.top;
+                } else if (rotationCount == 3) {//若相机图像需要顺时针旋转270度，则将扫码框逆时针旋转270度
+                    rotatedRect.left = 2000 - scaledRect.bottom;
+                    rotatedRect.top = scaledRect.left;
+                    rotatedRect.right = 2000 - scaledRect.top;
+                    rotatedRect.bottom = scaledRect.right;
+                }
+                //3.坐标系平移
+                Rect rect = new Rect(rotatedRect.left - 1000, rotatedRect.top - 1000, rotatedRect.right - 1000, rotatedRect.bottom - 1000);
+                Camera.Area area = new Camera.Area(rect, 1000);
+                focusAreas = new ArrayList<>();
+                focusAreas.add(area);
+            }
+            parameters.setFocusAreas(focusAreas);
+            cameraWrapper.camera.setParameters(parameters);
+        } catch (Exception e) {}
     }
 
     // ******************************************************************************
@@ -372,7 +375,6 @@ public class ZXingScannerView extends FrameLayout implements Camera.PreviewCallb
         this.cameraWrapper = cameraWrapper;
         if (this.cameraWrapper == null) return;
         removeAllViews();
-        if (previewSize == null) previewSize = getOptimalPreviewSize(getMeasuredWidth(), getMeasuredHeight());
         cameraPreview = new CameraPreview(getContext(), previewSize[0], previewSize[1], cameraWrapper, this, this);
         addView(cameraPreview);
         addView(((View) viewFinderView));
@@ -402,6 +404,7 @@ public class ZXingScannerView extends FrameLayout implements Camera.PreviewCallb
             cameraWrapper.camera.release();//释放资源
             cameraWrapper = null;
         }
+        previewSize = null;
         scaledRect = null;
         focusAreas = null;
         multiFormatReader = null;
@@ -510,38 +513,47 @@ public class ZXingScannerView extends FrameLayout implements Camera.PreviewCallb
     /**
      * 找到一个合适的previewSize（根据控件的尺寸）
      *
-     * @param width 控件宽度
-     * @param height 控件高度
+     * @param camera
      */
-    private int[] getOptimalPreviewSize(int width, int height) {
-        if (cameraWrapper == null) return new int[] {0, 0};
-        //相机图像默认都是横屏(即宽>高)
-        List<Camera.Size> sizes = cameraWrapper.camera.getParameters().getSupportedPreviewSizes();
-        if (sizes == null) return new int[] {0, 0};
-        int w, h;
-        if (getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE) {
-            w = width;
-            h = height;
-        } else {
-            w = height;
-            h = width;
-        }
-        double targetRatio = w * 1.0 / h;
-        Camera.Size optimalSize = null;
-        double minDiff = Double.MAX_VALUE;
-        double aspectTolerance = Double.MAX_VALUE;
-        int targetHeight = h;
-
-        // 获取最佳尺寸
-        for (Camera.Size size : sizes) {
-            double ratio = size.width * 1.0 / size.height;
-            if (Math.abs(ratio - targetRatio) > aspectTolerance) continue;
-            if (Math.abs(size.height - targetHeight) <= minDiff) {
-                optimalSize = size;
-                minDiff = Math.abs(size.height - targetHeight);
-                aspectTolerance = Math.abs(ratio - targetRatio);
+    void setOptimalPreviewSize(Camera camera) {
+        if (previewSize != null) return;
+        try {
+            if (camera == null) throw new NullPointerException("camera is null");
+            //相机图像默认都是横屏(即宽>高)
+            List<Camera.Size> sizes = camera.getParameters().getSupportedPreviewSizes();
+            if (sizes == null) throw new NullPointerException("size is null");
+            int w, h;
+            int width = getMeasuredWidth();
+            int height = getMeasuredHeight();
+            if (getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE) {
+                w = width;
+                h = height;
+            } else {
+                w = height;
+                h = width;
             }
+            double targetRatio = w * 1.0 / h;
+            Camera.Size optimalSize = null;
+            double minDiff = Double.MAX_VALUE;
+            double aspectTolerance = Double.MAX_VALUE;
+            int targetHeight = h;
+
+            // 获取最佳尺寸
+            for (Camera.Size size : sizes) {
+                double ratio = size.width * 1.0 / size.height;
+                if (Math.abs(ratio - targetRatio) > aspectTolerance) continue;
+                if (Math.abs(size.height - targetHeight) <= minDiff) {
+                    optimalSize = size;
+                    minDiff = Math.abs(size.height - targetHeight);
+                    aspectTolerance = Math.abs(ratio - targetRatio);
+                }
+            }
+            previewSize = new int[] {optimalSize.width, optimalSize.height};
+        } catch (Exception e) {
+            DisplayMetrics dm = getContext().getResources().getDisplayMetrics();
+            int width = dm.widthPixels > dm.heightPixels ? dm.widthPixels : dm.heightPixels;	// 屏幕宽度
+            int height = dm.widthPixels > dm.heightPixels ? dm.heightPixels : dm.widthPixels;	// 屏幕高度
+            previewSize = new int[] {width , height};
         }
-        return new int[] {optimalSize.width, optimalSize.height};
     }
 }

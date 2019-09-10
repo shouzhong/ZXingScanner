@@ -24,6 +24,7 @@ class CameraHandlerThread extends HandlerThread {
             @Override
             public void run() {
                 final Camera camera = CameraUtils.getCamera(cameraId);//打开camera
+                if (camera != null) mScannerView.setOptimalPreviewSize(camera);
                 Handler mainHandler = new Handler(Looper.getMainLooper());//切换到主线程
                 mainHandler.post(new Runnable() {
                     @Override
