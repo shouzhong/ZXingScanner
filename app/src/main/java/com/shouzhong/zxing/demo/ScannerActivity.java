@@ -28,6 +28,7 @@ public class ScannerActivity extends AppCompatActivity {
         setContentView(R.layout.activity_scanner);
         zXingScannerView = findViewById(R.id.zxing);
         zXingScannerView.setViewFinder(new ViewFinder(this));
+        zXingScannerView.setShouldAdjustFocusArea(true);
         zXingScannerView.setSaveBmp(true);
         zXingScannerView.setCallback(new Callback() {
             @Override

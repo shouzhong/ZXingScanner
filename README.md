@@ -14,7 +14,7 @@
 ## 使用
 ### 依赖
 ```
-implementation 'com.shouzhong:ZXingScanner:1.0.6'
+implementation 'com.shouzhong:ZXingScanner:1.0.8'
 ```
 如果想使用zbar
 ```
@@ -212,7 +212,7 @@ restartPreviewAfterDelay | 设置多少毫秒后重启扫描
 setFlash | 开启/关闭闪光灯
 toggleFlash | 切换闪光灯的点亮状态
 isFlashOn | 闪光灯是否被点亮
-setShouldAdjustFocusArea | 设置是否要根据扫码框的位置去调整对焦区域的位置，部分手机不支持，默认true
+setShouldAdjustFocusArea | 设置是否要根据扫码框的位置去调整对焦区域的位置，部分手机不支持，默认false
 setSaveBmp | 设置是否保存条码图片，默认false
 
 CodeUtils

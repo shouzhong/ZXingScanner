@@ -5,6 +5,7 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.util.Log;
 
 /**
  * Created by Administrator on 2018/12/21.
@@ -52,7 +53,8 @@ class SensorController implements SensorEventListener {
     }
 
     void onStart() {
-        if (callback != null) callback.onChanged();
+        currentTime = System.currentTimeMillis();
+        isMove = true;
         if (mSensorManager == null || mSensor == null) return;
         mSensorManager.registerListener(this, mSensor, SensorManager.SENSOR_DELAY_NORMAL);
     }

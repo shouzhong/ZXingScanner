@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.res.Configuration;
 import android.hardware.Camera;
 import android.view.Display;
+import android.view.MotionEvent;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
@@ -22,8 +23,9 @@ class CameraPreview extends SurfaceView implements SurfaceHolder.Callback {
     private Camera.PreviewCallback previewCallback;//当相机被释放时会被置为null
     private FocusAreaSetter focusAreaSetter;
     private SensorController sensorController;
+    private Camera.AutoFocusCallback autoFocusCallback;
 
-    private boolean previewing = true;//是否正在预览
+    private boolean previewing = false;//是否正在预览
     private boolean surfaceCreated = false;//surface是否已创建
 
     private int mPreviewWidth;
@@ -63,6 +65,29 @@ class CameraPreview extends SurfaceView implements SurfaceHolder.Callback {
         super.onMeasure(MeasureSpec.makeMeasureSpec(width, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(height, MeasureSpec.EXACTLY));
     }
 
+    @Override
+    public boolean onTouchEvent(MotionEvent event) {
+        if (!previewing) return true;
+        cameraWrapper.camera.cancelAutoFocus();
+        Camera.Parameters parameters = cameraWrapper.camera.getParameters();
+        final String currentFocusMode = parameters.getFocusMode();
+        parameters.setFocusMode(Camera.Parameters.FOCUS_MODE_MACRO);
+        cameraWrapper.camera.setParameters(parameters);
+        if (autoFocusCallback == null) autoFocusCallback = new Camera.AutoFocusCallback() {
+            @Override
+            public void onAutoFocus(boolean success, Camera camera) {
+                if (previewing && cameraWrapper != null) {
+                    cameraWrapper.camera.cancelAutoFocus();
+                    Camera.Parameters parameters = cameraWrapper.camera.getParameters();
+                    parameters.setFocusMode(currentFocusMode);
+                    cameraWrapper.camera.setParameters(parameters);
+                }
+            }
+        };
+        if (cameraWrapper != null) cameraWrapper.camera.autoFocus(autoFocusCallback);
+        return true;
+    }
+
     //--------------------------------------------------------------------------------------------------
 
     @Override
@@ -88,36 +113,49 @@ class CameraPreview extends SurfaceView implements SurfaceHolder.Callback {
      * 开始预览
      */
     void startCameraPreview() {
-        if (cameraWrapper != null) {
-            try {
-                previewing = true;
-                //设置相机参数
-                Camera.Parameters parameters = cameraWrapper.camera.getParameters();
-                parameters.setPreviewSize(mPreviewWidth, mPreviewHeight);
-                parameters.setFocusMode(Camera.Parameters.FOCUS_MODE_AUTO);
-                cameraWrapper.camera.setParameters(parameters);
-                cameraWrapper.camera.setPreviewDisplay(getHolder());//设置在当前surfaceView中进行相机预览
-                cameraWrapper.camera.setDisplayOrientation(getDisplayOrientation());//设置相机预览图像的旋转角度
-                cameraWrapper.camera.setOneShotPreviewCallback(previewCallback);//设置一次性的预览回调
-                cameraWrapper.camera.startPreview();//开始预览
-                if (!previewing || !surfaceCreated || sensorController != null) return;
-                focusAreaSetter.setAutoFocusArea();
-                sensorController = new SensorController(getContext());
-                sensorController.setDelay(1000);
-                sensorController.setCallback(new SensorController.Callback() {
-                    @Override
-                    public void onChanged() {
-                        cameraWrapper.camera.autoFocus(new Camera.AutoFocusCallback() {
-                            @Override
-                            public void onAutoFocus(boolean success, Camera camera) {
+        if (cameraWrapper == null || previewing) return;
+        try {
+            //设置相机参数
+            Camera.Parameters parameters = cameraWrapper.camera.getParameters();
+            parameters.setPreviewSize(mPreviewWidth, mPreviewHeight);
+            parameters.setFocusMode(Camera.Parameters.FOCUS_MODE_CONTINUOUS_PICTURE);
+            cameraWrapper.camera.setParameters(parameters);
+            cameraWrapper.camera.cancelAutoFocus(); // 先要取消掉进程中所有的聚焦功能
+            cameraWrapper.camera.setPreviewDisplay(getHolder());//设置在当前surfaceView中进行相机预览
+            cameraWrapper.camera.setDisplayOrientation(getDisplayOrientation());//设置相机预览图像的旋转角度
+            cameraWrapper.camera.setOneShotPreviewCallback(previewCallback);//设置一次性的预览回调
+            cameraWrapper.camera.startPreview();//开始预览
+            previewing = true;
+            if (!surfaceCreated || sensorController != null) return;
+            focusAreaSetter.setAutoFocusArea();
+            sensorController = new SensorController(getContext());
+            sensorController.setDelay(500);
+            sensorController.setCallback(new SensorController.Callback() {
+                @Override
+                public void onChanged() {
+                    if (!previewing) return;
+                    cameraWrapper.camera.cancelAutoFocus();
+                    Camera.Parameters parameters = cameraWrapper.camera.getParameters();
+                    final String currentFocusMode = parameters.getFocusMode();
+                    parameters.setFocusMode(Camera.Parameters.FOCUS_MODE_MACRO);
+                    cameraWrapper.camera.setParameters(parameters);
+                    if (autoFocusCallback == null) autoFocusCallback = new Camera.AutoFocusCallback() {
+                        @Override
+                        public void onAutoFocus(boolean success, Camera camera) {
+                            if (previewing && cameraWrapper != null) {
+                                cameraWrapper.camera.cancelAutoFocus();
+                                Camera.Parameters parameters = cameraWrapper.camera.getParameters();
+                                parameters.setFocusMode(currentFocusMode);
+                                cameraWrapper.camera.setParameters(parameters);
                             }
-                        });
-                    }
-                });
-                sensorController.onStart();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+                        }
+                    };
+                    if (cameraWrapper != null) cameraWrapper.camera.autoFocus(autoFocusCallback);
+                }
+            });
+            sensorController.onStart();
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
@@ -125,9 +163,9 @@ class CameraPreview extends SurfaceView implements SurfaceHolder.Callback {
      * 停止预览
      */
     void stopCameraPreview() {
+        previewing = false;
         if (cameraWrapper != null) {
             try {
-                previewing = false;
                 if (sensorController != null) {
                     sensorController.onStop();
                     sensorController = null;

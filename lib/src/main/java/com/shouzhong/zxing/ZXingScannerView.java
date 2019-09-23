@@ -50,7 +50,7 @@ public class ZXingScannerView extends FrameLayout implements Camera.PreviewCallb
     private Rect scaledRect;
     private ArrayList<Camera.Area> focusAreas;
     private CameraHandlerThread cameraHandlerThread;
-    private boolean shouldAdjustFocusArea = true;//是否需要自动调整对焦区域
+    private boolean shouldAdjustFocusArea;//是否需要自动调整对焦区域
     private MultiFormatReader multiFormatReader;
     private ImageScanner imageScanner;
     private Map<DecodeHintType, Object> hints0;
