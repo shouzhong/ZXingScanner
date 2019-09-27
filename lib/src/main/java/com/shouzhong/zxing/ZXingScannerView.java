@@ -439,14 +439,30 @@ public class ZXingScannerView extends FrameLayout implements Camera.PreviewCallb
                 scaledRect.top = scaledRect.top * height / viewFinderViewHeight;
                 scaledRect.bottom = scaledRect.bottom * height / viewFinderViewHeight;
             }
+//            scaledRect.left = (int) (0.8f * scaledRect.left);
+//            scaledRect.right = (int) (1.25f * scaledRect.right);
+//            scaledRect.top = (int) (0.8f * scaledRect.top);
+//            scaledRect.bottom = (int) (1.25f * scaledRect.bottom);
             int rotationCount = getRotationCount();
-            if (rotationCount == 1 || rotationCount == 3) {
-                int temp1 = scaledRect.left;
-                scaledRect.left = scaledRect.top;
-                scaledRect.top = temp1;
-                int temp2 = scaledRect.right;
-                scaledRect.right = scaledRect.bottom;
-                scaledRect.bottom = temp2;
+            int left = scaledRect.left;
+            int top = scaledRect.top;
+            int right = scaledRect.right;
+            int bottom = scaledRect.bottom;
+            if (rotationCount == 1) {
+                scaledRect.left = top;
+                scaledRect.top = previewHeight - right;
+                scaledRect.right = bottom;
+                scaledRect.bottom = previewHeight - left;
+            } else if (rotationCount == 2) {
+                scaledRect.left = previewWidth - right;
+                scaledRect.top = previewHeight - bottom;
+                scaledRect.right = previewWidth - left;
+                scaledRect.bottom = previewHeight - top;
+            } else if (rotationCount == 3) {
+                scaledRect.left = previewWidth - bottom;
+                scaledRect.top = left;
+                scaledRect.right = previewWidth - top;
+                scaledRect.bottom = right;
             }
             if (scaledRect.left < 0)  scaledRect.left = 0;
             if (scaledRect.top < 0) scaledRect.top = 0;

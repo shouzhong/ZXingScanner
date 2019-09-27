@@ -75,8 +75,8 @@ public class ScannerActivity extends AppCompatActivity {
         private Rect framingRect;//扫码框所占区域
         private float widthRatio = 0.6f;//扫码框宽度占view总宽度的比例
         private float heightWidthRatio = 1f;//扫码框的高宽比
-        private int leftOffset = -1;//扫码框相对于左边的偏移量，若为负值，则扫码框会水平居中
-        private int topOffset = -1;//扫码框相对于顶部的偏移量，若为负值，则扫码框会竖直居中
+        private int leftOffset = 100;//扫码框相对于左边的偏移量，若为负值，则扫码框会水平居中
+        private int topOffset = 200;//扫码框相对于顶部的偏移量，若为负值，则扫码框会竖直居中
 
         private int laserColor = 0xff008577;// 扫描线颜色
         private int maskColor = 0x60000000;// 阴影颜色
@@ -180,7 +180,8 @@ public class ScannerActivity extends AppCompatActivity {
         private synchronized void updateFramingRect() {
             Point viewSize = new Point(getWidth(), getHeight());
             int width, height;
-            width = (int) (getWidth() * widthRatio);
+            width = 600;
+//            width = (int) (getWidth() * widthRatio);
             height = (int) (heightWidthRatio * width);
 
             int left, top;

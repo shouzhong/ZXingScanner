@@ -67,25 +67,28 @@ class CameraPreview extends SurfaceView implements SurfaceHolder.Callback {
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
-        if (!previewing) return true;
-        cameraWrapper.camera.cancelAutoFocus();
-        Camera.Parameters parameters = cameraWrapper.camera.getParameters();
-        final String currentFocusMode = parameters.getFocusMode();
-        parameters.setFocusMode(Camera.Parameters.FOCUS_MODE_MACRO);
-        cameraWrapper.camera.setParameters(parameters);
-        if (autoFocusCallback == null) autoFocusCallback = new Camera.AutoFocusCallback() {
-            @Override
-            public void onAutoFocus(boolean success, Camera camera) {
-                if (previewing && cameraWrapper != null) {
-                    cameraWrapper.camera.cancelAutoFocus();
-                    Camera.Parameters parameters = cameraWrapper.camera.getParameters();
-                    parameters.setFocusMode(currentFocusMode);
-                    cameraWrapper.camera.setParameters(parameters);
+        if (!previewing) return super.onTouchEvent(event);
+        try {
+            cameraWrapper.camera.cancelAutoFocus();
+            Camera.Parameters parameters = cameraWrapper.camera.getParameters();
+            final String currentFocusMode = parameters.getFocusMode();
+            parameters.setFocusMode(Camera.Parameters.FOCUS_MODE_MACRO);
+            cameraWrapper.camera.setParameters(parameters);
+            if (autoFocusCallback == null) autoFocusCallback = new Camera.AutoFocusCallback() {
+                @Override
+                public void onAutoFocus(boolean success, Camera camera) {
+                    if (previewing && cameraWrapper != null) {
+                        cameraWrapper.camera.cancelAutoFocus();
+                        Camera.Parameters parameters = cameraWrapper.camera.getParameters();
+                        parameters.setFocusMode(currentFocusMode);
+                        cameraWrapper.camera.setParameters(parameters);
+                    }
                 }
-            }
-        };
-        if (cameraWrapper != null) cameraWrapper.camera.autoFocus(autoFocusCallback);
-        return true;
+            };
+            if (cameraWrapper != null) cameraWrapper.camera.autoFocus(autoFocusCallback);
+            return true;
+        } catch (Exception e) {}
+        return super.onTouchEvent(event);
     }
 
     //--------------------------------------------------------------------------------------------------
@@ -134,23 +137,25 @@ class CameraPreview extends SurfaceView implements SurfaceHolder.Callback {
                 @Override
                 public void onChanged() {
                     if (!previewing) return;
-                    cameraWrapper.camera.cancelAutoFocus();
-                    Camera.Parameters parameters = cameraWrapper.camera.getParameters();
-                    final String currentFocusMode = parameters.getFocusMode();
-                    parameters.setFocusMode(Camera.Parameters.FOCUS_MODE_MACRO);
-                    cameraWrapper.camera.setParameters(parameters);
-                    if (autoFocusCallback == null) autoFocusCallback = new Camera.AutoFocusCallback() {
-                        @Override
-                        public void onAutoFocus(boolean success, Camera camera) {
-                            if (previewing && cameraWrapper != null) {
-                                cameraWrapper.camera.cancelAutoFocus();
-                                Camera.Parameters parameters = cameraWrapper.camera.getParameters();
-                                parameters.setFocusMode(currentFocusMode);
-                                cameraWrapper.camera.setParameters(parameters);
+                    try {
+                        cameraWrapper.camera.cancelAutoFocus();
+                        Camera.Parameters parameters = cameraWrapper.camera.getParameters();
+                        final String currentFocusMode = parameters.getFocusMode();
+                        parameters.setFocusMode(Camera.Parameters.FOCUS_MODE_MACRO);
+                        cameraWrapper.camera.setParameters(parameters);
+                        if (autoFocusCallback == null) autoFocusCallback = new Camera.AutoFocusCallback() {
+                            @Override
+                            public void onAutoFocus(boolean success, Camera camera) {
+                                if (previewing && cameraWrapper != null) {
+                                    cameraWrapper.camera.cancelAutoFocus();
+                                    Camera.Parameters parameters = cameraWrapper.camera.getParameters();
+                                    parameters.setFocusMode(currentFocusMode);
+                                    cameraWrapper.camera.setParameters(parameters);
+                                }
                             }
-                        }
-                    };
-                    if (cameraWrapper != null) cameraWrapper.camera.autoFocus(autoFocusCallback);
+                        };
+                        if (cameraWrapper != null) cameraWrapper.camera.autoFocus(autoFocusCallback);
+                    } catch (Exception e) {}
                 }
             });
             sensorController.onStart();
