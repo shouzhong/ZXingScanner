@@ -1,5 +1,5 @@
 # ZXingScanner
-## 该项目不在维护，迁移到[Scanner](https://github.com/shouzhong/Scanner)
+## 注意，该项目不在维护，迁移到[Scanner](https://github.com/shouzhong/Scanner)
 ## 说明
 用zxing实现的一个扫码库，有别于一般的扫码库，你可以定义任何位置任何尺寸的扫描框而不会导致摄像头预览变形。
 ## 效果图
